@@ -202,6 +202,16 @@ sort_nsps (gconstpointer a, gconstpointer b)
 	return g_strcmp0 (name_a, name_b);
 }
 
+static gboolean
+wimax_toggle (GtkWidget *widget, gpointer user_data)
+{
+	NMApplet *applet = (NMApplet *) user_data;
+	gboolean enabled = ! nm_client_wimax_get_enabled (applet->nm_client);
+	nm_client_wimax_set_enabled (applet->nm_client, enabled);
+
+	return TRUE;
+}
+
 static void
 wimax_add_menu_item (NMDevice *device,
                      guint32 n_devices,
@@ -233,10 +243,7 @@ wimax_add_menu_item (NMDevice *device,
 		text = g_strdup (_("WiMAX Mobile Broadband"));
 	}
 
-	item = applet_menu_item_create_device_item_helper (device, applet, text);
-	gtk_widget_set_sensitive (item, FALSE);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
-	gtk_widget_show (item);
+	applet_menu_item_add_device_item_helper (device, applet, menu, wimax_toggle, text);
 	g_free (text);
 
 	/* Add the active NSP if we're connected to something and the device is available */

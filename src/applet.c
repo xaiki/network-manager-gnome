@@ -631,7 +631,7 @@ applet_menu_create_switch_item_helper (NMApplet  *applet,
 
 	g_object_set (G_OBJECT (menu_item),
 	              "child", box,
-	              "sensitive", FALSE,
+	              "sensitive", TRUE,
 	              NULL);
 
 	return menu_item;
@@ -822,14 +822,121 @@ menu_title_item_dont_expose (GtkWidget *widget, GdkEventExpose *event, gpointer 
 }
 #endif
 
-GtkWidget *
-applet_menu_item_create_device_item_helper (NMDevice *device,
+static inline gboolean
+applet_menu_item_toggle_switch (GtkWidget *widget, gpointer user_data)
+{
+	GtkSwitch *sw = GTK_SWITCH(user_data);
+	gtk_widget_activate(GTK_WIDGET(sw));
+}
+
+static inline gboolean
+applet_menu_item_draw_only_if_active_cb (GtkWidget *d, gpointer data)
+{
+	gboolean active;
+	g_object_get (G_OBJECT(d), "active", &active, NULL);
+	if (active)
+		return FALSE;
+	return TRUE;
+}
+
+static inline gboolean
+applet_menu_item_sync_state (NMState state,
+							 GtkWidget *spinner,
+							 GtkWidget *sw)
+{
+	gboolean spin = FALSE;
+	gboolean sws;
+
+	switch (state) {
+	case NM_DEVICE_STATE_DEACTIVATING:
+		spin = TRUE;
+	case NM_DEVICE_STATE_UNKNOWN:
+	case NM_DEVICE_STATE_UNMANAGED:
+	case NM_DEVICE_STATE_UNAVAILABLE:
+		sws = FALSE;
+		break;
+	case NM_DEVICE_STATE_PREPARE:
+	case NM_DEVICE_STATE_CONFIG:
+	case NM_DEVICE_STATE_NEED_AUTH:
+	case NM_DEVICE_STATE_IP_CONFIG:
+	case NM_DEVICE_STATE_IP_CHECK:
+	case NM_DEVICE_STATE_SECONDARIES:
+		spin = TRUE;
+	case NM_DEVICE_STATE_ACTIVATED:
+	case NM_DEVICE_STATE_DISCONNECTED:
+	case NM_DEVICE_STATE_FAILED:
+		sws = TRUE;
+		break;
+	default:
+		g_log (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "Got unmanaged state: %d", state);
+		break;
+	}
+
+	gtk_switch_set_active(GTK_SWITCH(sw), sws);
+	if (spin)
+		gtk_spinner_start(GTK_SPINNER(spinner));
+	else
+		gtk_spinner_stop(GTK_SPINNER(spinner));
+
+	return sws && spin;
+}
+
+static gboolean
+applet_menu_item_handle_state_changed_cb (NMDevice *device,
+										  NMDeviceState   state,
+										  NMDeviceState   old_state,
+										  NMDeviceStateReason   reason,
+										  gpointer user_data)
+{
+	GtkWidget *box  = GTK_WIDGET (user_data);
+	GList     *list = gtk_container_get_children (GTK_CONTAINER(box));
+	GtkWidget *sw      = list->data;
+	GtkWidget *spinner = g_list_next(list)->data;
+
+	applet_menu_item_sync_state (state, sw, spinner);
+	return FALSE;
+}
+
+/* A little note: this is needed because the menu actually goes away when not shown,
+   hence, the box goes away too… nasty things happen if we let the handler connected */
+static gboolean
+applet_menu_item_disconnect_signal (GtkWidget *box, gpointer user_data)
+{
+	NMDevice *device = NM_DEVICE (user_data);
+	g_object_disconnect (G_OBJECT (device), "any_signal", G_CALLBACK(applet_menu_item_handle_state_changed_cb), box, NULL);
+	return FALSE;
+}
+
+void
+applet_menu_item_add_device_item_helper (NMDevice *device,
                                             NMApplet *applet,
+											GtkWidget *menu,
+											gboolean (*cb) (GtkWidget *, gpointer user_data),
                                             const gchar *text)
 {
 	GtkWidget *item;
 	GtkWidget *label    = gtk_label_new (NULL);
-	item = applet_menu_create_switch_item_helper (applet, label, NULL);
+	GtkWidget *sw       = gtk_switch_new ();
+	GtkWidget *spinner  = gtk_spinner_new ();
+	GtkWidget *box      = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+	NMDeviceState state = nm_device_get_state(device);
+
+	applet_menu_item_sync_state (state, spinner, sw);
+
+	gtk_box_pack_start (GTK_BOX(box), spinner, FALSE, FALSE, 0);
+	gtk_box_pack_start (GTK_BOX(box), sw, FALSE, FALSE, 0);
+
+	g_signal_connect (spinner, "draw", G_CALLBACK (applet_menu_item_draw_only_if_active_cb), NULL);
+	g_signal_connect (device, "state-changed", G_CALLBACK(applet_menu_item_handle_state_changed_cb), box);
+	g_signal_connect (box, "destroy", G_CALLBACK (applet_menu_item_disconnect_signal), device);
+
+	gtk_label_set_markup (GTK_LABEL (label), text);
+
+	item = applet_menu_create_switch_item_helper (applet, label, box);
+	if (cb) {
+		g_signal_connect (item, "activate", G_CALLBACK(applet_menu_item_toggle_switch), sw);
+		g_signal_connect (sw,   "activate", G_CALLBACK (cb), applet);
+	}
 
 #if GTK_CHECK_VERSION(2,90,7)
 	g_signal_connect (item,  "draw", G_CALLBACK (menu_title_item_draw), label);
@@ -838,7 +945,9 @@ applet_menu_item_create_device_item_helper (NMDevice *device,
 	g_signal_connect (item,  "expose-event", G_CALLBACK (menu_title_item_expose), label);
 	g_signal_connect (label, "expose-event", G_CALLBACK (menu_title_item_dont_expose), NULL);
 #endif
-	return item;
+
+	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
+	gtk_widget_show (item);
 }
 
 static void

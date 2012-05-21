@@ -276,10 +276,12 @@ void applet_menu_item_add_complex_separator_helper (GtkWidget *menu,
                                                     const gchar* label,
                                                     int pos);
 
-GtkWidget*
-applet_menu_item_create_device_item_helper (NMDevice *device,
-                                            NMApplet *applet,
-                                            const gchar *text);
+void
+applet_menu_item_add_device_item_helper (NMDevice *device,
+										 NMApplet *applet,
+										 GtkWidget *menu,
+										 gboolean (*cb) (GtkWidget *, gpointer user_data),
+										 const gchar *text);
 
 NMRemoteConnection *applet_get_exported_connection_for_device (NMDevice *device, NMApplet *applet);
 

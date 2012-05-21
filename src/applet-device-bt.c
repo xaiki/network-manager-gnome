@@ -129,6 +129,12 @@ add_connection_items (NMDevice *device,
 	}
 }
 
+static gboolean
+bt_toggle (GtkWidget *sw, gpointer user_data)
+{
+	g_log (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "UNIMPLEMENTED: toggle_bt\n");
+}
+
 static void
 bt_add_menu_item (NMDevice *device,
                   guint32 n_devices,
@@ -152,11 +158,7 @@ bt_add_menu_item (NMDevice *device,
 		g_assert (text);
 	}
 
-	item = applet_menu_item_create_device_item_helper (device, applet, text);
-
-	gtk_widget_set_sensitive (item, FALSE);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
-	gtk_widget_show (item);
+	applet_menu_item_add_device_item_helper (device, applet, menu, bt_toggle, text);
 
 	if (g_slist_length (connections))
 		add_connection_items (device, connections, active, ADD_ACTIVE, menu, applet);

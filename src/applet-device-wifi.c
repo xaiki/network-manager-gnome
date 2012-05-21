@@ -758,6 +758,16 @@ sort_toplevel (gconstpointer tmpa, gconstpointer tmpb)
 	return sort_by_name (a, b);
 }
 
+static gboolean
+wifi_toggle (GtkWidget *sw, gpointer user_data)
+{
+	NMApplet *applet = (NMApplet *) user_data;
+	gboolean enabled = ! nm_client_wireless_get_enabled (applet->nm_client);
+	nm_client_wireless_set_enabled (applet->nm_client, enabled);
+
+	return TRUE;
+}
+
 static void
 wireless_add_menu_item (NMDevice *device,
                         guint32 n_devices,
@@ -795,12 +805,8 @@ wireless_add_menu_item (NMDevice *device,
 	} else
 		text = g_strdup (ngettext ("Wireless Network", "Wireless Networks", aps ? aps->len : 0));
 
-	widget = applet_menu_item_create_device_item_helper (device, applet, text);
+	applet_menu_item_add_device_item_helper (device, applet, menu, wifi_toggle, text);
 	g_free (text);
-
-	gtk_widget_set_sensitive (widget, FALSE);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), widget);
-	gtk_widget_show (widget);
 
 	all = applet_get_all_connections (applet);
 	connections = nm_device_filter_connections (device, all);

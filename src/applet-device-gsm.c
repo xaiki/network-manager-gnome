@@ -363,6 +363,16 @@ gsm_act_to_mb_act (GsmDeviceInfo *info)
 	return MB_TECH_GSM;
 }
 
+static gboolean
+gsm_toggle (GtkWidget *widget, gpointer user_data)
+{
+	NMApplet *applet = (NMApplet *) user_data;
+	gboolean enabled = ! nm_client_wwan_get_enabled (applet->nm_client);
+	nm_client_wwan_set_enabled (applet->nm_client, enabled);
+
+	return TRUE;
+}
+
 static void
 gsm_add_menu_item (NMDevice *device,
                    guint32 n_devices,
@@ -394,10 +404,7 @@ gsm_add_menu_item (NMDevice *device,
 		text = g_strdup (_("Mobile Broadband"));
 	}
 
-	item = applet_menu_item_create_device_item_helper (device, applet, text);
-	gtk_widget_set_sensitive (item, FALSE);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
-	gtk_widget_show (item);
+	applet_menu_item_add_device_item_helper (device, applet, menu, gsm_toggle, text);
 	g_free (text);
 
 	/* Add the active connection */

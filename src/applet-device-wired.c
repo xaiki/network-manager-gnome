@@ -177,6 +177,12 @@ add_default_connection_item (NMDevice *device,
 	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
 }
 
+static gboolean
+wired_toggle (GtkWidget *widget, gpointer user_data)
+{
+	g_log (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, "UNIMPLEMENTED wired_toggle\n");
+}
+
 static void
 wired_add_menu_item (NMDevice *device,
                      guint32 n_devices,
@@ -212,7 +218,7 @@ wired_add_menu_item (NMDevice *device,
 			text = g_strdup (_("Wired Network"));
 	}
 
-	item = applet_menu_item_create_device_item_helper (device, applet, text);
+	applet_menu_item_add_device_item_helper (device, applet, menu, wired_toggle, text);
 	g_free (text);
 
 	/* Only dim the item if the device supports carrier detection AND
@@ -220,10 +226,6 @@ wired_add_menu_item (NMDevice *device,
 	 */
  	if (nm_device_get_capabilities (device) & NM_DEVICE_CAP_CARRIER_DETECT)
 		carrier = nm_device_ethernet_get_carrier (NM_DEVICE_ETHERNET (device));
-
-	gtk_widget_set_sensitive (item, FALSE);
-	gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
-	gtk_widget_show (item);
 
 	if (g_slist_length (connections))
 		add_connection_items (device, connections, carrier, active, ADD_ACTIVE, menu, applet);
