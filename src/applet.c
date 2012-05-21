@@ -689,7 +689,6 @@ applet_new_menu_item_helper (NMConnection *connection,
 static void
 menu_item_draw_generic (GtkWidget *widget, cairo_t *cr)
 {
-	GtkWidget *label;
 	PangoFontDescription *desc;
 	PangoLayout *layout;
 	int width = 0, height = 0, owidth, oheight;
@@ -699,8 +698,7 @@ menu_item_draw_generic (GtkWidget *widget, cairo_t *cr)
 	gdouble ypadding = 5.0;
 	gdouble postpadding = 0.0;
 
-	label = gtk_bin_get_child (GTK_BIN (widget));
-	text = gtk_label_get_text (GTK_LABEL (label));
+	text = gtk_label_get_text (GTK_LABEL (widget));
 
 	layout = pango_cairo_create_layout (cr);
 #if GTK_CHECK_VERSION(2,20,0) && !GTK_CHECK_VERSION(2,91,6)
@@ -749,17 +747,26 @@ menu_item_draw_generic (GtkWidget *widget, cairo_t *cr)
 	gtk_widget_set_size_request (widget, width + 2 * xpadding, height + ypadding + postpadding);
 }
 
+
 #if GTK_CHECK_VERSION(2,90,7)
 static gboolean
 menu_title_item_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
 {
-	menu_item_draw_generic (widget, cr);
+	GtkWidget *label = GTK_LABEL (user_data);
+	menu_item_draw_generic (label, cr);
+	return FALSE;
+}
+static gboolean
+menu_title_item_dont_draw (GtkWidget *widget, cairo_t *cr, gpointer user_data)
+{
 	return TRUE;
 }
+
 #else
 static gboolean
-menu_title_item_expose (GtkWidget *widget, GdkEventExpose *event)
+menu_title_item_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
 {
+	GtkWidget *label = GTK_LABEL (user_data);
 	GtkAllocation allocation;
 	cairo_t *cr;
 
@@ -779,9 +786,14 @@ menu_title_item_expose (GtkWidget *widget, GdkEventExpose *event)
 	gtk_widget_get_allocation (widget, &allocation);
 	cairo_translate (cr, allocation.x, allocation.y);
 
-	menu_item_draw_generic (widget, cr);
+	menu_item_draw_generic (label, cr);
 
 	cairo_destroy (cr);
+	return FALSE;
+}
+static gboolean
+menu_title_item_dont_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
+{
 	return TRUE;
 }
 #endif
@@ -796,9 +808,11 @@ applet_menu_item_create_device_item_helper (NMDevice *device,
 	item = gtk_menu_item_new_with_mnemonic (text);
 	gtk_widget_set_sensitive (item, FALSE);
 #if GTK_CHECK_VERSION(2,90,7)
-	g_signal_connect (item, "draw", G_CALLBACK (menu_title_item_draw), NULL);
+	g_signal_connect (item,  "draw", G_CALLBACK (menu_title_item_draw), label);
+	g_signal_connect (label, "draw", G_CALLBACK (menu_title_item_dont_draw), NULL);
 #else
-	g_signal_connect (item, "expose-event", G_CALLBACK (menu_title_item_expose), NULL);
+	g_signal_connect (item,  "expose-event", G_CALLBACK (menu_title_item_expose), label);
+	g_signal_connect (label, "expose-event", G_CALLBACK (menu_title_item_dont_expose), NULL);
 #endif
 	return item;
 }
