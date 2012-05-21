@@ -613,6 +613,30 @@ applet_menu_item_activate_helper (NMDevice *device,
 	}
 }
 
+GtkWidget *
+applet_menu_create_switch_item_helper (NMApplet  *applet,
+									   GtkWidget *label,
+									   GtkWidget *swbox)
+{
+	GtkWidget *menu_item = gtk_image_menu_item_new ();
+#if GTK_CHECK_VERSION(3,1,6)
+	GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+#else
+	GtkWidget *box = gtk_hbox_new (FALSE, 0);
+#endif
+
+	gtk_box_pack_start (GTK_BOX (box), label, TRUE, TRUE, 0);
+	if (swbox)
+		gtk_box_pack_start (GTK_BOX (box), swbox, FALSE, FALSE, 0);
+
+	g_object_set (G_OBJECT (menu_item),
+	              "child", box,
+	              "sensitive", FALSE,
+	              NULL);
+
+	return menu_item;
+}
+
 void
 applet_menu_item_add_complex_separator_helper (GtkWidget *menu,
                                                NMApplet *applet,
@@ -804,9 +828,9 @@ applet_menu_item_create_device_item_helper (NMDevice *device,
                                             const gchar *text)
 {
 	GtkWidget *item;
+	GtkWidget *label    = gtk_label_new (NULL);
+	item = applet_menu_create_switch_item_helper (applet, label, NULL);
 
-	item = gtk_menu_item_new_with_mnemonic (text);
-	gtk_widget_set_sensitive (item, FALSE);
 #if GTK_CHECK_VERSION(2,90,7)
 	g_signal_connect (item,  "draw", G_CALLBACK (menu_title_item_draw), label);
 	g_signal_connect (label, "draw", G_CALLBACK (menu_title_item_dont_draw), NULL);
